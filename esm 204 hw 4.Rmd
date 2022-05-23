@@ -7,5 +7,32 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+
+# Attach packages
+
+library(tidyverse)
+library(here)
+library(janitor)
+```
+
+```{r}
+# Read in data
+damages <- read_csv(here("damages.csv"))
+warming <- read_csv(here("warming.csv"))
+```
+
+1. Using damages.csv, estimate a quadratic damage function relating the dollar value of damages to the change in global mean temperature. Estimate a model with a zero intercept because damages by construction must equal zero when there is no climate change. Plot your estimated damage function, overlaid with a scatterplot of the underlying data.
+
+```{r}
+
+# Need warming^2 to derive a quadratic model
+
+damages$warming2 <- damages$warming^2
+
+#run a linear regression
+damages_quadratic <- lm(damages ~ 0 + warming + warming2, data = damages)
+
+#output the model results
+summary(damages_quadratic)
 ```
 
