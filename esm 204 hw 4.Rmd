@@ -1,27 +1,35 @@
 ---
 title: "ESM 204 HW 4"
-author: "Alessandra Puig-Santana"
+author: "Alessandra Puig-Santana and Shayan Kaveh"
 date: "5/23/2022"
-output: html_document
+output: 
+  html_document:
+    code_folding: hide
+    theme: yeti
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+```{r setup, include= TRUE, message = F, warning = F}
+knitr::opts_chunk$set(echo = TRUE, message = F, warning = F)
 
 # Attach packages
 
 library(tidyverse)
 library(here)
 library(janitor)
+library(broom)
+library(equatiomatic)
+library(patchwork)
 ```
 
+### 1. Quadratic model of damages 
 ```{r}
 # Read in data
 damages <- read_csv(here("damages.csv"))
-warming <- read_csv(here("warming.csv"))
+warming <- read_csv(here("warming.csv")) %>% 
+  select(year:warming_pulse)
 ```
 
-1. Using damages.csv, estimate a quadratic damage function relating the dollar value of damages to the change in global mean temperature. Estimate a model with a zero intercept because damages by construction must equal zero when there is no climate change. Plot your estimated damage function, overlaid with a scatterplot of the underlying data.
+Using damages.csv, estimate a quadratic damage function relating the dollar value of damages to the change in global mean temperature. Estimate a model with a zero intercept because damages by construction must equal zero when there is no climate change. Plot your estimated damage function, overlaid with a scatterplot of the underlying data.
 
 ```{r}
 
@@ -29,10 +37,84 @@ warming <- read_csv(here("warming.csv"))
 
 damages$warming2 <- damages$warming^2
 
-#run a linear regression
+#run a quadratic regression for the damages
 damages_quadratic <- lm(damages ~ 0 + warming + warming2, data = damages)
 
 #output the model results
-summary(damages_quadratic)
+# summary(damages_quadratic)
+
+# extract equation
+extract_eq(model = damages_quadratic, use_coefs = TRUE, coef_digits = 7)
+
+# augment results
+damages_predict <- augment(damages_quadratic)
 ```
 
+```{r damages graph}
+# graph the quadratic damage function 
+ggplot(data = damages, aes(x = warming, y = damages/1e+9)) +
+  geom_point(color = "black", size = 0.7) +
+  geom_line(data = damages_quadratic, aes(x = warming, y = .fitted/1e+9, color = .fitted), size = 1.2) +
+  scale_color_gradientn(colors = c("gold", "coral", "indianred4")) +
+  theme_minimal() +
+  labs(x = "Warming (degrees C)", y = "Damages (billions USD)", title = "Dollar value of damages from change in global mean temperature") +
+  scale_x_continuous(n.breaks = 10) +
+  theme(legend.position = "none") 
+```
+
+<br>
+
+### 2. Damage with a Carbon Pulse
+
+Use warming.csv and your estimated damage function to predict damages in each year under the baseline climate and the pulse scenario. Make four plots: (1) damages over time without the pulse, (2) damages over time with the pulse, (3) the difference in damages over time that arises from the pulse, and (4) the difference in damages over time from the pulse per ton of CO2 (you can assume that each ton of the pulse causes the same amount of damage). 
+
+```{r damages function}
+damages <- function(warming) {
+  damages <- damages_quadratic$coefficients[1]*warming + damages_quadratic$coefficients[2]*(warming^2)
+  return(damages)
+}
+```
+
+```{r pulse/baseline damage dataframe}
+# creating a new dataframe with differences and damages per ton based on degrees of warming 
+pulse <- warming %>% 
+  mutate(damages_baseline = damages(warming_baseline)) %>% 
+  mutate(damages_pulse = damages(warming_pulse)) %>% 
+  mutate(difference = damages_pulse - damages_baseline) %>% 
+  mutate(damage_per_ton = difference/35e+9)
+```
+
+```{r damage plots}
+p1 <- ggplot(data = pulse, aes(x = year, y = damages_baseline/1e+9)) +
+  geom_line(size = 1.2, color = "coral3") +
+  labs(x = "Year", y = "Damages (billion USD)", title = "Damages from baseline warming") +
+  theme_minimal()
+
+p2 <- ggplot(data = pulse, aes(x = year, y = damages_pulse/1e+9)) +
+  geom_line(size = 1.2, color = "coral3") + 
+  labs(x = "Year", y = "Damages (billion USD)", title = "Damages with carbon pulse") +
+  theme_minimal()
+
+p3 <- ggplot(data = pulse, aes(x = year, y = difference/1e+9)) +
+  geom_line(size = 1.2, color = "coral3") + 
+  labs(x = "Year", y = "Difference in damages (billion USD)", title = "Difference in damages from \n baseline and carbon pulse") +
+  theme_minimal()
+
+p4 <- ggplot(data = pulse, aes(x = year, y = damage_per_ton)) +
+  geom_line(size = 1.2, color = "coral3") + 
+  labs(x = "Year", y = "Difference in damages per ton CO2 (USD)", title = "Difference in damages from \n baseline and carbon pulse") +
+  theme_minimal()
+```
+
+
+```{r graph 1 & 2}
+p1 + p2
+```
+
+```{r graphs 3 & 4}
+p3 + p4
+```
+
+<br>
+
+### 3. 
