@@ -51,17 +51,19 @@ damages_quadratic <- lm(damages ~ 0 + warming + warming2, data = damages)
 # summary(damages_quadratic)
 
 # extract equation
-extract_eq(model = damages_quadratic, use_coefs = TRUE, coef_digits = 7)
+# extract_eq(model = damages_quadratic, use_coefs = TRUE, coef_digits = 7)
 
 # augment results
 damages_predict <- augment(damages_quadratic)
 ```
 
+$Damages = (1.94e13*warming^2) - (1.06e12*warming)$
+
 ```{r damages graph}
 # graph the quadratic damage function 
 ggplot(data = damages, aes(x = warming, y = damages/1e+9)) +
   geom_point(color = "black", size = 0.7) +
-  geom_line(data = damages_quadratic, aes(x = warming, y = .fitted/1e+9, color = .fitted), size = 1.2) +
+  geom_line(data = damages_quadratic, aes(x = warming, y = .fitted/1e+9, color = "darkseagreen"), size = 1.2) +
   theme_minimal() +
   labs(x = "Warming (degrees C)", y = "Damages (billions USD)", title = "Dollar value of damages from change in global mean temperature") +
   scale_x_continuous(n.breaks = 10) +
@@ -227,14 +229,15 @@ ev_a <- 0.5*sum(policy$damages_baseline_discounted) + 0.5*sum(policy$damages_a_d
 ev_b <- sum(policy$damages_b_discounted)
 ```
 
-** Expected Present Values Under Scenarios A & B**
+**Expected Present Values Under Scenarios A & B**
 
-Present value of damages under Policy A: `r round(ev_a/1e+9, 0)` billion
-Present value of damages under Policy B: `r round(ev_b/1e+9, 0)` billion
+Present value of damages under Policy A: **$3.02e6 billion**
+<br>
+Present value of damages under Policy B: **$1.06e6 billion**
 
 ```{r}
 # cost sequence
-cost <- seq(0, 5e15, by = 1e9) 
+cost <- seq(0, 5e15, by = 1e12) 
 
 cost_df <- data.frame(cost) 
 
@@ -242,13 +245,21 @@ cost_compare <- cost_df %>%
   mutate(cost_b = ev_b + cost) %>% 
   mutate(cost_a = ev_a)
 
-# graph of damages under policy scenarios
+# visualizing cost and damages of policy options
 ggplot(data = cost_compare) +
-  geom_line(aes(x = cost/1e9, y = cost_a/1e9), color = "darkseagreen") + 
-  geom_line(aes(x = cost/1e9, y = cost_b/1e9), color = "indianred") +
+  geom_line(aes(x = cost/1e9, y = cost_a/1e9), size = 1.2, color = "darkseagreen") + 
+  geom_line(aes(x = cost/1e9, y = cost_b/1e9), size = 1.2, color = "indianred") +
   theme_minimal() + 
-  labs(x = "Implementation Cost (billions USD)", y = "Expected Value of Cost (billions USD)") 
+  labs(x = "Implementation Cost (billion USD)", y = "Expected Value (billion USD)") +
+  geom_text(aes(x = 4e6, y = 3.2e6, label = "Policy A"), color = "darkseagreen", size = 4) +
+  geom_text(aes(x = 4e6, y = 5.3e6, label = "Policy B"), color = "indianred", angle = 45, size = 4)
 ```
 
-### 6. Now suppose that society is risk averse. How do you think this would change your advice to Congress? 
+**Advice to Congress:**
 
+We would advise Congress that if the cost of implementation is below about $2e+06 billion, Policy A will have the highest expected value. Above that implementation cost, Policy B will have an increasingly higher expected value. Considering most climate policies have a smaller implementation cost than this, we recommend Congress take action on climate policy now.
+
+### 6. Risk Averse Society
+**Advice to Congress:**
+
+A risk averse society will likely prefer Policy B. The risk of chance that a pulse might occur under Policy A (0.5) makes  the full expected value less likely than Policy B with 100% certainty of future scenarios. Policy B's risk and costs are known, which makes it more attractive to a risk averse society. 
