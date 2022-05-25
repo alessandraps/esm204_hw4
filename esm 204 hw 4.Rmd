@@ -6,6 +6,13 @@ output:
   html_document:
     code_folding: hide
     theme: yeti
+    toc: yes
+    toc_depth: 5
+    toc_float: yes
+    collapsed: yes
+    smooth_scroll: yes
+editor_options:
+  chunk_output_type: console
 ---
 
 ```{r setup, include= TRUE, message = F, warning = F}
@@ -55,7 +62,6 @@ damages_predict <- augment(damages_quadratic)
 ggplot(data = damages, aes(x = warming, y = damages/1e+9)) +
   geom_point(color = "black", size = 0.7) +
   geom_line(data = damages_quadratic, aes(x = warming, y = .fitted/1e+9, color = .fitted), size = 1.2) +
-  scale_color_gradientn(colors = c("gold", "coral", "indianred4")) +
   theme_minimal() +
   labs(x = "Warming (degrees C)", y = "Damages (billions USD)", title = "Dollar value of damages from change in global mean temperature") +
   scale_x_continuous(n.breaks = 10) +
@@ -117,18 +123,132 @@ p3 + p4
 
 <br>
 
-### 3. The SCC is the present discounted value of the stream of future damages caused by one additional ton of CO2. The Obama Administration used a discount rate of 3% to discount damages. Recently, New York State used a discount rate of 2%. Calculate and make a plot of the SCC (y-axis) against the discount rate (x-axis) for a reasonable range of discount rates. Explain the intuition for how the discount rate affects the SCC. 
+### 3. Social Cost of Carbon
+
+The SCC is the present discounted value of the stream of future damages caused by one additional ton of CO2. The Obama Administration used a discount rate of 3% to discount damages. Recently, New York State used a discount rate of 2%. Calculate and make a plot of the SCC (y-axis) against the discount rate (x-axis) for a reasonable range of discount rates. Explain the intuition for how the discount rate affects the SCC. 
+
+```{r}
+# create a new df with discount damages based on various discount rates
+scc <- pulse %>% 
+  mutate(years_into_future = year-2022) %>% 
+  mutate(scc_not_discounted = difference/35e+9) %>% 
+  mutate(dr0.25 = scc_not_discounted/(1.0025^years_into_future)) %>% 
+  mutate(dr0.5 = scc_not_discounted/(1.005^years_into_future)) %>% 
+  mutate(dr0.75 = scc_not_discounted/(1.0075^years_into_future)) %>% 
+  mutate(dr1 = scc_not_discounted/(1.01^years_into_future)) %>% 
+  mutate(dr1.5 = scc_not_discounted/(1.015^years_into_future)) %>% 
+  mutate(dr2 = scc_not_discounted/(1.02^years_into_future)) %>% 
+  mutate(dr3 = scc_not_discounted/(1.03^years_into_future)) %>% 
+  mutate(dr4 = scc_not_discounted/(1.04^years_into_future)) %>% 
+  mutate(dr5 = scc_not_discounted/(1.05^years_into_future)) %>% 
+  mutate(dr6 = scc_not_discounted/(1.06^years_into_future)) %>% 
+  mutate(dr2.1 = scc_not_discounted/(1.021^years_into_future))
+
+scc0.025 <- sum(scc$dr0.25)
+scc0.5 <- sum(scc$dr0.5)
+scc0.75 <- sum(scc$dr0.75)
+scc1 <- sum(scc$dr1)
+scc1.5 <- sum(scc$dr1.5)
+scc2 <- sum(scc$dr2)
+scc3 <- sum(scc$dr3)
+scc4 <- sum(scc$dr4)
+scc5 <- sum(scc$dr5)
+scc6 <- sum(scc$dr6)
+
+scc_vector <- c(scc0.025, scc0.5, scc0.75, scc1, scc1.5, scc2, scc3, scc4, scc5, scc6)
+dr <- c(0.25, 0.5, 0.75, 1, 1.5, 2, 3, 4, 5, 6)
+scc_table <- data.frame(scc_vector, dr)
+```
+
+```{r}
+# plotting SCC vs. discount rate
+ggplot(data = scc_table, aes(x = dr, y = scc_vector)) +
+    geom_line(color = "darkseagreen") +
+  labs(x = "Discount rate (%)", y = "Social Cost of Carbon") +
+  theme_minimal() +
+  scale_x_continuous(n.breaks = 10) +
+  labs(title = "Social cost of carbon at various discount rates")
+```
 
 
-### 4. The National Academies of Sciences, Engineering, and Medicine advised the government in a 2017 report to use the Ramsey Rule when discounting within the SCC calculation: r = ρ + ηg. Using ρ = 0.001, η = 2, and g = 0.01, what is the SCC? Locate this point on your graph from above. 
 
-### 5. Now suppose there are two possible climate policies that can be pursued. Policy A is business as usual and Policy B is to take immediate and strong action on climate change. Use these facts:
+### 4. Ramsey Rule
+
+The National Academies of Sciences, Engineering, and Medicine advised the government in a 2017 report to use the Ramsey Rule when discounting within the SCC calculation: r = ρ + ηg. Using ρ = 0.001, η = 2, and g = 0.01, what is the SCC? Locate this point on your graph from above. 
+
+```{r}
+# calculate discount rate based on ramsey rule
+ramsey <- (0.001 + 2*0.01)*100
+```
+
+Under the Ramsey Rule, our discount rate is **`r ramsey`%**
+
+```{r}
+# caclulate scc under ramsey rule
+scc2.1 <- sum(scc$dr2.1)
+
+
+# apply scc to discount graph
+ggplot(data = scc_table, aes(x = dr, y = scc_vector)) +
+  geom_line(alpha = 2, color = "darkseagreen") +
+  labs(x = "Discount Rate (%)", y = "Social Cost of Carbon") +
+  theme_minimal() +
+  scale_x_continuous(n.breaks = 10) +
+  geom_point(aes(y = scc2.1, x = ramsey), size = 5, shape = 4) +
+  geom_text(aes(y = scc2.1, x = 4, label = "Ramsey Rule: SCC = $71"), size = 5, shape = 8)
+```
+
+<br>
+
+### 5. Possible Climate Policies
+
+Now suppose there are two possible climate policies that can be pursued. Policy A is business as usual and Policy B is to take immediate and strong action on climate change. Use these facts:
 - If you undertake Policy A there are two possible outcomes. Either warming will occur as in the “baseline” (i.e. “no-pulse”) dataset above (this happens with probability 0.5) or warming each year will be 1.5 times that in the “baseline” dataset (with probability 0.5). 
 - Under Policy B, warming will continue until 2050 as in the “baseline” dataset, and then will stabilize at 1.29 degrees and stay that way forever. 
 - Society is risk neutral 
 - Use a discount rate of 2% 
 
 What is the expected present value of damages up to 2100 under Policy A? What is the expected present value of damages up to 2100 under Policy B? Suppose undertaking Policy A costs zero and undertaking Policy B costs X. The total cost of a policy is the implementation cost plus expected damages. Make a plot of total cost of Policy A and total cost of Policy B against X. Suppose Congress wants to undertake the policy with the lower total cost. Use your graph to advise Congress. 
+
+```{r}
+# data frame of expected values
+policy <- pulse %>% 
+  mutate(warming_policy_a = 1.5*warming_baseline) %>% # 0.5 probabilty under A
+  mutate(warming_policy_b = ifelse(year < 2050, warming_policy_a, 1.29)) %>% # 100% probability under B
+  mutate(damages_a = damages(warming_policy_a)) %>% 
+  mutate(damages_b = damages(warming_policy_b)) %>%
+  mutate(years_into_future = year-2022) %>% 
+  mutate(damages_a_discounted = damages_a/(1.02^years_into_future)) %>%
+  mutate(damages_b_discounted = damages_b/(1.02^years_into_future)) %>% 
+  mutate(damages_baseline_discounted = damages_baseline/(1.02^years_into_future))
+
+# expected values
+ev_a <- 0.5*sum(policy$damages_baseline_discounted) + 0.5*sum(policy$damages_a_discounted)
+ev_b <- sum(policy$damages_b_discounted)
+```
+
+** Expected Present Values Under Scenarios A & B**
+
+Present value of damages under Policy A: `r round(ev_a/1e+9, 0)` billion
+Present value of damages under Policy B: `r round(ev_b/1e+9, 0)` billion
+
+```{r}
+# cost sequence
+cost <- seq(0, 5e15, by = 1e9) 
+
+cost_df <- data.frame(cost) 
+
+cost_compare <- cost_df %>% 
+  mutate(cost_b = ev_b + cost) %>% 
+  mutate(cost_a = ev_a)
+
+# graph of damages under policy scenarios
+ggplot(data = cost_compare) +
+  geom_line(aes(x = cost/1e9, y = cost_a/1e9), color = "darkseagreen") + 
+  geom_line(aes(x = cost/1e9, y = cost_b/1e9), color = "indianred") +
+  theme_minimal() + 
+  labs(x = "Implementation Cost (billions USD)", y = "Expected Value of Cost (billions USD)") 
+```
 
 ### 6. Now suppose that society is risk averse. How do you think this would change your advice to Congress? 
 
